@@ -1,0 +1,17 @@
+﻿{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "development": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5130",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "AZURE_SUBSCRIPTION_ID":"d998bd55-abb7-4eaf-9bdd-ce30255f1298",
+        "AZURE_TENANT_ID":"960f34f8-a069-417e-a2c6-6d37875594e6",
+        "AZURE_KEY_VAULT_ENDPOINT": "https://kv-simonaggio.vault.azure.net/"
+      }
+    }
+  }
+}

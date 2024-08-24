@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Azure.AI.FormRecognizer" />
+      <PackageReference Include="Azure.Identity" />
+      <PackageReference Include="Microsoft.Azure.Cosmos" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+      <PackageReference Include="Microsoft.Extensions.Logging" />
+      <PackageReference Include="PdfSharpCore" />
+        <PackageReference Include="Azure.Extensions.AspNetCore.Configuration.Secrets" />
+        
+    </ItemGroup>
+
+</Project>
