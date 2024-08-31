@@ -20,4 +20,6 @@ public class Fragment() : Collection("frag")
     public int Index { get; set; }
     
     public int Offset { get; set; }
+
+    protected override string GetPartitionKeyValue() => File;
 }

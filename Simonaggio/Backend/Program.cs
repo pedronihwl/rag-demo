@@ -1,5 +1,7 @@
+using System.Diagnostics.Tracing;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Azure.Core.Diagnostics;
 using Azure.Identity;
 using Azure.Storage;
 using Azure.Storage.Blobs;
@@ -8,6 +10,7 @@ using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Fluent;
+using OpenAI;
 using Shared.Options;
 using Shared.Serializer;
 
@@ -15,6 +18,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 var services = builder.Services;
 var env = builder.Environment;
+
+using var listener = new AzureEventSourceListener(
+    (e, message) => Console.WriteLine($"{e.EventSource.Name} [{e.Level}]: {message}"),
+    level: EventLevel.Informational);
 
 var credential = new DefaultAzureCredential();
 
@@ -81,12 +88,19 @@ services.AddSingleton<BlobContainerClient>(sp =>
     return sp.GetRequiredService<BlobServiceClient>().GetBlobContainerClient(azureStorageContainer);
 });
 
-services.AddOptions<AzureContextOptions>()
+services.AddOptions<CosmosDbOptions>()
     .Configure<IConfiguration>(
         (settings, configuration) => 
             configuration.GetSection("azureServiceOptions").Bind(settings));
 
-services.AddSingleton<AzureContextService>();
+services.AddSingleton<AzureContextService>(sp =>
+{
+    var embedding = Environment.GetEnvironmentVariable("OPENAI_EMBEDDING_DEPLOYMENT") ?? throw new ArgumentException("env OPENAI_EMBEDDING_DEPLOYMENT not found");
+    var key = Environment.GetEnvironmentVariable("OPENAI_TOKEN") ?? throw new ArgumentException("env OPENAI_OPENAI_TOKEN not found");
+    var chat = Environment.GetEnvironmentVariable("OPENAI_CHAT_DEPLOYMENT") ?? throw new ArgumentException("env OPENAI_CHAT_DEPLOYMENT not found");
+    
+    return ActivatorUtilities.CreateInstance<AzureContextService>(sp, new OpenAIClient(key), embedding, chat);
+});
 
 var app = builder.Build();
 

@@ -4,15 +4,13 @@
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-        <UserSecretsId>dotnet-EmbedFunction-13ED5ADF-8FE0-4E11-80BC-CD3CA9289C57</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Azure.Storage.Blobs" />
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0"/>
-        <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Storage" />
-        <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" />
-        <PackageReference Include="Microsoft.Azure.Functions.Worker" />
         <PackageReference Include="Microsoft.Extensions.Azure" />
+        <PackageReference Include="Azure.AI.OpenAI" Version="2.0.0-beta.3"/>
     </ItemGroup>
 
     <ItemGroup>

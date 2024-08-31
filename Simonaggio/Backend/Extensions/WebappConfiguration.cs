@@ -1,6 +1,8 @@
 using System.Net;
+using System.Text.Json.Nodes;
 using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
+using Shared;
 
 namespace Backend.Extensions;
 
@@ -14,6 +16,8 @@ internal static class WebappConfiguration
 
         api.MapDelete("/files/{id}", OnDeleteFile);
 
+        api.MapGet("/fragments/{contextId}", OnDownloadFragments);
+
         api.MapPost("/chat/{contextId}", OnChat);
         
         api.MapPost("/context", OnPostContext)
@@ -25,9 +29,29 @@ internal static class WebappConfiguration
         return app;
     }
 
-    private static async Task<IResult> OnChat(string contextId)
+    private static async Task<IResult> OnDownloadFragments(
+        string contextId, 
+        [FromQuery] string fonts,
+        [FromServices] AzureContextService service,
+        CancellationToken cancelToken)
     {
-        return TypedResults.Ok("");
+        return TypedResults.File(
+            await service.DownloadFragmentAsync(fonts.Split(","), contextId, cancelToken), 
+            "application/pdf", 
+            $"{Guid.NewGuid().ToString("N")[..8]}.pdf"
+            );
+    }
+
+    private static async Task<IResult> OnChat(
+        string contextId, 
+        ChatRequest request,
+        [FromServices] AzureContextService service, 
+        CancellationToken cancelToken)
+    {
+
+        var result = await service.ChatAsync(request, contextId, cancelToken);
+        
+        return TypedResults.Ok(result ?? "");
     }
 
     private static Task<IResult> OnDeleteFile(
@@ -36,7 +60,7 @@ internal static class WebappConfiguration
         [FromServices] AzureContextService service,
         CancellationToken cancelToken)
     {
-        service.DeleteFile(id, context, cancelToken);
+        _ = service.DeleteFile(id, context, cancelToken);
         return Task.FromResult<IResult>(TypedResults.NoContent());
     }
 

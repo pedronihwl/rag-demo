@@ -5,31 +5,36 @@ using System.Text.RegularExpressions;
 using Azure;
 using Azure.AI.FormRecognizer.DocumentAnalysis;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using OpenAI;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
 using Shared.Collections;
-using Shared.Options;
 
 namespace Shared.Services;
 
 public class AzureEmbedService(
     ILoggerFactory factory, 
-    IOptions<AzureEmbedOptions> options,
-    DocumentAnalysisClient documentAnalysisClient)
+    DocumentAnalysisClient documentAnalysisClient,
+    OpenAIClient openAiClient,
+    string modelName)
 {
     private ILogger _logger = factory.CreateLogger("Embed");
-    private AzureEmbedOptions Options { get; } = options.Value;
     
-    private int Buffer { get; set; }
+    private const int BUFFER_SIZE = 1024;
     
-    public delegate void ProgressChangedEventHandler(object sender, ProgressChangedEventArgs e);
+    public delegate void ProgressChangedEventHandler(ProgressChangedEventArgs e);
     
     public event ProgressChangedEventHandler? ProgressChanged;
     
-    public async Task<IReadOnlyList<PageDetail>> GetDocumentTextAsync(PdfPage page)
+    public async Task<IReadOnlyList<PageDetail>> GetDocumentTextAsync(PdfPage page, int aux)
     {
-        using var ms = new MemoryStream(page.Stream.Value);
+        PdfDocument singlePageDocument = new PdfDocument();
+        singlePageDocument.AddPage(page);
+
+        using MemoryStream ms = new MemoryStream();
+        singlePageDocument.Save(ms);
+
+        ms.Position = 0;
         
         var operation = await documentAnalysisClient.AnalyzeDocumentAsync(WaitUntil.Started, "prebuilt-layout", ms);
         var results = await operation.WaitForCompletionAsync();
@@ -76,32 +81,24 @@ public class AzureEmbedService(
                     addedTables.Add(tableChars[j]);
                 }
             }
-
-            string text = CleanString(pageText.ToString());
             pageText.Append(' ');
-            pageMap.Add(new PageDetail(i, offset, pageText.ToString()));
+            
+            string text = CleanString(pageText.ToString());
             offset += text.Length;
+            pageMap.Add(new PageDetail(aux, offset, text));
         }
         
         return pageMap.AsReadOnly();
     }
-    
-    public static string CleanString(string input)
+
+    private static string CleanString(string input)
     {
-        string pattern = @"(\r?\n){3,}|\s{2,}";
+        input = Regex.Replace(input, @"(\r?\n)+", "\n");
+        input = Regex.Replace(input, @"\s+", " ");
 
-        string cleanedString = Regex.Replace(input, pattern, match => 
-        {
-            if (match.Value.StartsWith($"\r") || match.Value.StartsWith("\n"))
-            {
-                return "\n\n"; 
-            }
-            return " "; 
-        });
-        
-        cleanedString = cleanedString.Trim();
+        input = input.Trim();
 
-        return cleanedString.ToLower();
+        return input.ToLower();
     }
     
     private static string TableToHtml(DocumentTable table)
@@ -110,9 +107,10 @@ public class AzureEmbedService(
         var rows = new List<DocumentTableCell>[table.RowCount];
         for (int i = 0; i < table.RowCount; i++)
         {
+            var i1 = i;
             rows[i] =
             [
-                .. table.Cells.Where(c => c.RowIndex == i)
+                .. table.Cells.Where(c => c.RowIndex == i1)
                     .OrderBy(c => c.ColumnIndex)
                 ,
             ];
@@ -153,6 +151,8 @@ public class AzureEmbedService(
         const int SentenceSearchLimit = 100;
         const int SectionOverlap = 100;
 
+        var standardChunkSize = SentenceSearchLimit + SectionOverlap + BUFFER_SIZE;
+        
         var sentenceEndings = new[] { '.', '!', '?' };
         var wordBreaks = new[] { ',', ';', ':', ' ', '(', ')', '[', ']', '{', '}', '\t', '\n' };
         var allText = string.Concat(pages.Select(p => p.Text));
@@ -163,7 +163,7 @@ public class AzureEmbedService(
         while (start + SectionOverlap < length)
         {
             var lastWord = -1;
-            end = start + Options.ChunkSize;
+            end = start + BUFFER_SIZE;
 
             if (end > length)
             {
@@ -171,7 +171,7 @@ public class AzureEmbedService(
             }
             else
             {
-                while (end < length && (end - start - Options.ChunkSize) < SentenceSearchLimit && !sentenceEndings.Contains(allText[end]))
+                while (end < length && (end - start - BUFFER_SIZE) < SentenceSearchLimit && !sentenceEndings.Contains(allText[end]))
                 {
                     if (wordBreaks.Contains(allText[end]))
                     {
@@ -192,7 +192,7 @@ public class AzureEmbedService(
             }
             
             lastWord = -1;
-            while (start > 0 && start > end - Options.ChunkSize - (2 * SentenceSearchLimit) && !sentenceEndings.Contains(allText[start]))
+            while (start > 0 && start > end - BUFFER_SIZE - (2 * SentenceSearchLimit) && !sentenceEndings.Contains(allText[start]))
             {
                 if (wordBreaks.Contains(allText[start]))
                 {
@@ -211,16 +211,23 @@ public class AzureEmbedService(
             }
 
             var sectionText = allText[start..end];
-
-            string txt = allText[start..end];
+            
+            if (sectionText.Length > standardChunkSize)
+            {
+                sectionText = sectionText.Substring(0, standardChunkSize);
+            }
+            else if (sectionText.Length < standardChunkSize)
+            {
+                sectionText = sectionText.PadRight(standardChunkSize);
+            }
             
             yield return new Fragment()
             {
                 Context = file.Context,
                 Index = FindPage(pages, start),
-                Text = txt,
+                Text = sectionText,
                 File = file.Id,
-                Offset = txt.Length
+                Offset = sectionText.Length
             };
 
             var lastTableStart = sectionText.LastIndexOf("<table", StringComparison.Ordinal);
@@ -238,6 +245,16 @@ public class AzureEmbedService(
         if (start + SectionOverlap < end)
         {
             string txt = allText[start..end];
+            
+            if (txt.Length > standardChunkSize)
+            {
+                txt = txt.Substring(0, standardChunkSize);
+            }
+            else if (txt.Length < standardChunkSize)
+            {
+                txt = txt.PadRight(standardChunkSize);
+            }
+            
             yield return new Fragment()
             {
                 Context = file.Context,
@@ -262,38 +279,52 @@ public class AzureEmbedService(
 
         return length - 1;
     }
+
+    private IEnumerable<Fragment> GetEmbeddings(IEnumerable<Fragment> fragments)
+    {
+        var embeddingClient = openAiClient.GetEmbeddingClient(modelName);
+        foreach (var fragment in fragments)
+        {
+            var embedding = embeddingClient.GenerateEmbedding(fragment.Text);
+            fragment.Embeddings = embedding.Value.Vector.ToArray();
+
+            yield return fragment;
+        }
+    }
     
-    public async Task<bool> EmbedPDFBlobAsync(Stream pdfBlobStream, FileCollection file)
+    public async Task<IReadOnlyList<Fragment>> EmbedPDFBlobAsync(Stream pdfBlobStream, FileCollection file)
     {
         using var document = PdfReader.Open(pdfBlobStream, PdfDocumentOpenMode.Import);
         _logger.LogInformation("Start embedding {name} with {pages} from {ctx}", file.Name, document.Pages.Count, file.Context);
 
         file.Pages = document.Pages.Count;
-        ProgressChanged?.Invoke(this, new ProgressChangedEventArgs(1,file));
+        file.Status = FileCollection.FileStatus.PROCESSING;
+        
+        ProgressChanged?.Invoke(new ProgressChangedEventArgs(1,file));
 
         int processedPages = 0;
 
         var tasks = new Task<IReadOnlyList<PageDetail>>[document.Pages.Count];
+        var aux = 0;
         foreach (var page in document.Pages)
         {
-            tasks[processedPages] = GetDocumentTextAsync(page).ContinueWith(t =>
+            tasks[aux] = GetDocumentTextAsync(page, aux).ContinueWith(t =>
             {
                 if (t.IsFaulted) return t.Result;
                 
                 file.ProcessedPages = ++processedPages;
                 _logger.LogInformation("Processed {processed}/{total} from {fileName}", processedPages, file.Pages, file.Name);
                     
-                ProgressChanged?.Invoke(this, new ProgressChangedEventArgs(
-                    (int)Math.Ceiling((double)file.ProcessedPages / file.Pages), file));
+                ProgressChanged?.Invoke(new ProgressChangedEventArgs((int)Math.Ceiling((double)file.ProcessedPages / file.Pages), file));
 
                 return t.Result;
             });
+            aux++;
         }
 
         var pages = (await Task.WhenAll(tasks)).SelectMany(item => item).ToList();
-
-        var fragments = Chunks(pages, file);
-
-        return true;
+        var fragments = GetEmbeddings(Chunks(pages, file));
+        
+        return fragments.ToList();
     }
 }

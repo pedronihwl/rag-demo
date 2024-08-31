@@ -5,7 +5,10 @@
       "commandName": "Project",
       "dotnetRunMessages": true,
       "environmentVariables": {
-        "DOTNET_ENVIRONMENT": "Development"
+        "DOTNET_ENVIRONMENT": "Development",
+        "OPENAI_EMBEDDING_DEPLOYMENT": "text-embedding-ada-002",
+        "OPENAI_TOKEN": "sk-proj-A9JRVVUL6Ttydxv9xz93T3BlbkFJHDu6eRORneQaYuIiXVpn",
+        "AZURE_KEY_VAULT_ENDPOINT": "https://kv-simonaggio.vault.azure.net/"
       }
     }
   }
