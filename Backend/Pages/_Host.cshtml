@@ -14,7 +14,7 @@
     if (hostEnvironment.IsDevelopment())
     {
         var httpClient = new HttpClient();
-        source = await httpClient.GetStringAsync($"{config["SpaDevServerUrl"]}/index.html");
+        source = await httpClient.GetStringAsync($"{config["spaDevServerUrl"]}/index.html");
     }
     else
     {

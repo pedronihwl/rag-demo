@@ -1,6 +1,7 @@
 using System.Diagnostics.Tracing;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AspNetCore.Proxy;
 using Azure.Core.Diagnostics;
 using Azure.Identity;
 using Azure.Storage;
@@ -20,10 +21,6 @@ var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 var env = builder.Environment;
 
-using var listener = new AzureEventSourceListener(
-    (e, message) => Console.WriteLine($"{e.EventSource.Name} [{e.Level}]: {message}"),
-    level: EventLevel.Informational);
-
 var credential = new DefaultAzureCredential();
 
 builder.Configuration.ConfigureAzureKeyVault(credential);
@@ -37,6 +34,19 @@ services.AddCors(
                     .AllowAnyMethod()));
 
 services.AddLogging();
+
+services.AddAntiforgery(options =>
+{
+    options.Cookie.SecurePolicy = CookieSecurePolicy.None; 
+    options.Cookie.Name = "antiforgery";
+    options.HeaderName = "X-CSRF-TOKEN";
+    options.SuppressXFrameOptionsHeader = false;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+});
+
+services.AddHttpClient();
+services.AddRazorPages();
+
 services.AddControllersWithViews(options =>
 {
     options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
@@ -103,14 +113,43 @@ services.AddSingleton<AzureContextService>(sp =>
     return ActivatorUtilities.CreateInstance<AzureContextService>(sp, new OpenAIClient(key), embedding, chat);
 });
 
+
 var app = builder.Build();
+
+if (env.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+
+if (env.IsDevelopment())
+{
+    var spaDevServer = app.Configuration.GetValue<string>("spaDevServerUrl");
+    if (!string.IsNullOrEmpty(spaDevServer))
+    {
+        app.MapWhen(
+            context => { 
+                var path = context.Request.Path.ToString();
+                var isFileRequest = path.StartsWith("/@", StringComparison.InvariantCulture)
+                                    || path.StartsWith("/src", StringComparison.InvariantCulture) 
+                                    || path.StartsWith("/node_modules", StringComparison.InvariantCulture); 
+
+                return isFileRequest;
+            }, appBuilder => appBuilder.Run(context =>
+            {
+                var targetPath = $"{spaDevServer}{context.Request.Path}{context.Request.QueryString}";
+                return context.HttpProxyAsync(targetPath);
+            }));
+
+    }
+}
 
 app.UseRouting();
 app.UseStaticFiles();
 app.UseCors();
 
-app.MapControllers();
+app.MapRazorPages();
 
 app.AddApi();
 
+app.MapFallbackToPage("/_Host");
 app.Run();

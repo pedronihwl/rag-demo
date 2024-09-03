@@ -14,12 +14,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Content Include="..\.dockerignore">
-        <Link>.dockerignore</Link>
-      </Content>
-    </ItemGroup>
-
-    <ItemGroup>
         <PackageReference Include="AspNetCore.Proxy" Version="4.5.0" />
         <PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders" Version="0.18.0" />
         <PackageReference Include="Azure.Identity" />
