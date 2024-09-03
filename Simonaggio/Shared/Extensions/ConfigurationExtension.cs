@@ -1,7 +1,7 @@
 using Azure.Identity;
 using Microsoft.Extensions.Configuration;
 
-namespace Backend.Extensions;
+namespace Shared.Extensions;
 
 public static class ConfigurationExtension
 {

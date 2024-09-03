@@ -160,9 +160,28 @@ public class AzureContextService(
     private record FragmentRecord(int Page, string File, int index);
 
 
-    public int[] AddSidePages(int[] pages, int max)
+    public static int[] ExpandArray(int[] input, int max)
     {
-        return pages;
+        var expandedList = new List<int>();
+
+        foreach (var num in input)
+        {
+            for (int i = num - 1; i >= (num > 0 ? num - 3 : num); i--)
+            {
+                if (i >= 0)
+                    expandedList.Add(i);
+            }
+            
+            expandedList.Add(num);
+
+            for (int i = num + 1; i <= num + 3; i++)
+            {
+                if (i <= max) 
+                    expandedList.Add(i);
+            }
+        }
+        
+        return expandedList.Distinct().OrderBy(n => n).ToArray();
     }
     
     public async Task<MemoryStream> DownloadFragmentAsync(string[] fonts, string context, CancellationToken cancelToken)
@@ -220,7 +239,7 @@ public class AzureContextService(
 
                 using (var pdfDocument = PdfReader.Open(ms, PdfDocumentOpenMode.Import))
                 {
-                    pages = AddSidePages(pages, pdfDocument.Pages.Count - 1);
+                    pages = ExpandArray(pages, pdfDocument.Pages.Count - 1);
 
                     for (var i = 0; i < pages.Length; i++)
                     {

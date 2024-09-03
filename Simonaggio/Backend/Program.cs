@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Fluent;
 using OpenAI;
+using Shared.Extensions;
 using Shared.Options;
 using Shared.Serializer;
 

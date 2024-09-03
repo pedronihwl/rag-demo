@@ -35,19 +35,22 @@ public class AzureEmbedService(
         singlePageDocument.Save(ms);
 
         ms.Position = 0;
-        
-        var operation = await documentAnalysisClient.AnalyzeDocumentAsync(WaitUntil.Started, "prebuilt-layout", ms);
-        var results = await operation.WaitForCompletionAsync();
+
+        // TODO: Ring buffer. Avoid Too many requests
+        var result = await Task.Run(async () =>
+        {
+            var operation = await documentAnalysisClient.AnalyzeDocumentAsync(WaitUntil.Completed, "prebuilt-layout", ms);
+            return await operation.WaitForCompletionAsync();
+        });
         
         var offset = 0;
         List<PageDetail> pageMap = [];
 
-        var pages = results.Value.Pages;
+        var pages = result.Value.Pages;
 
         for (var i = 0; i < pages.Count; i++)
         {
-            IReadOnlyList<DocumentTable> tablesOnPage =
-                results.Value.Tables.Where(t => t.BoundingRegions[0].PageNumber == i + 1).ToList();
+            IReadOnlyList<DocumentTable> tablesOnPage = result.Value.Tables.Where(t => t.BoundingRegions[0].PageNumber == i + 1).ToList();
             
             int pageIndex = pages[i].Spans[0].Index;
             int pageLength = pages[i].Spans[0].Length;
@@ -73,7 +76,7 @@ public class AzureEmbedService(
             {
                 if (tableChars[j] == -1)
                 {
-                    pageText.Append(results.Value.Content[pageIndex + j]);
+                    pageText.Append(result.Value.Content[pageIndex + j]);
                 }
                 else if (!addedTables.Contains(tableChars[j]))
                 {
@@ -148,10 +151,8 @@ public class AzureEmbedService(
 
     private IEnumerable<Fragment> Chunks(IReadOnlyList<PageDetail> pages, FileCollection file)
     {
-        const int SentenceSearchLimit = 100;
-        const int SectionOverlap = 100;
-
-        var standardChunkSize = SentenceSearchLimit + SectionOverlap + BUFFER_SIZE;
+        const int SentenceSearchLimit = 100; 
+        const int SectionOverlap = 50;
         
         var sentenceEndings = new[] { '.', '!', '?' };
         var wordBreaks = new[] { ',', ';', ':', ' ', '(', ')', '[', ']', '{', '}', '\t', '\n' };
@@ -159,12 +160,18 @@ public class AzureEmbedService(
         var length = allText.Length;
         var start = 0;
         var end = length;
+
+        var indexes = pages.Select((p, i) => new
+        {
+            Number = p.Index,
+            Size = pages.Take(i + 1).Aggregate(0, ((i1, p1) => i1 + p1.Offset))
+        }).ToList();
         
         while (start + SectionOverlap < length)
         {
             var lastWord = -1;
             end = start + BUFFER_SIZE;
-
+            
             if (end > length)
             {
                 end = length;
@@ -211,20 +218,12 @@ public class AzureEmbedService(
             }
 
             var sectionText = allText[start..end];
-            
-            if (sectionText.Length > standardChunkSize)
-            {
-                sectionText = sectionText.Substring(0, standardChunkSize);
-            }
-            else if (sectionText.Length < standardChunkSize)
-            {
-                sectionText = sectionText.PadRight(standardChunkSize);
-            }
+            int index = indexes.First(item => item.Size >= start).Number;
             
             yield return new Fragment()
             {
                 Context = file.Context,
-                Index = FindPage(pages, start),
+                Index = index,
                 Text = sectionText,
                 File = file.Id,
                 Offset = sectionText.Length
@@ -245,39 +244,17 @@ public class AzureEmbedService(
         if (start + SectionOverlap < end)
         {
             string txt = allText[start..end];
-            
-            if (txt.Length > standardChunkSize)
-            {
-                txt = txt.Substring(0, standardChunkSize);
-            }
-            else if (txt.Length < standardChunkSize)
-            {
-                txt = txt.PadRight(standardChunkSize);
-            }
+            int index = indexes.First(item => item.Size >= (start + end)).Number;
             
             yield return new Fragment()
             {
                 Context = file.Context,
-                Index = FindPage(pages, start),
+                Index = index,
                 Text = txt,
                 File = file.Id,
                 Offset = txt.Length
             };
         }
-    }
-    
-    private static int FindPage(IReadOnlyList<PageDetail> pageMap, int offset)
-    {
-        var length = pageMap.Count;
-        for (var i = 0; i < length - 1; i++)
-        {
-            if (offset >= pageMap[i].Offset && offset < pageMap[i + 1].Offset)
-            {
-                return i;
-            }
-        }
-
-        return length - 1;
     }
 
     private IEnumerable<Fragment> GetEmbeddings(IEnumerable<Fragment> fragments)
@@ -295,7 +272,7 @@ public class AzureEmbedService(
     public async Task<IReadOnlyList<Fragment>> EmbedPDFBlobAsync(Stream pdfBlobStream, FileCollection file)
     {
         using var document = PdfReader.Open(pdfBlobStream, PdfDocumentOpenMode.Import);
-        _logger.LogInformation("Start embedding {name} with {pages} from {ctx}", file.Name, document.Pages.Count, file.Context);
+        _logger.LogInformation("Start embedding {name} with {pages} pages from {ctx}", file.Name, document.Pages.Count, file.Context);
 
         file.Pages = document.Pages.Count;
         file.Status = FileCollection.FileStatus.PROCESSING;
@@ -305,10 +282,11 @@ public class AzureEmbedService(
         int processedPages = 0;
 
         var tasks = new Task<IReadOnlyList<PageDetail>>[document.Pages.Count];
-        var aux = 0;
-        foreach (var page in document.Pages)
+
+        for (int i = 0; i < document.Pages.Count; i++)
         {
-            tasks[aux] = GetDocumentTextAsync(page, aux).ContinueWith(t =>
+            var page = document.Pages[i];
+            tasks[i] = GetDocumentTextAsync(page, i).ContinueWith(t =>
             {
                 if (t.IsFaulted) return t.Result;
                 
@@ -319,12 +297,12 @@ public class AzureEmbedService(
 
                 return t.Result;
             });
-            aux++;
         }
 
         var pages = (await Task.WhenAll(tasks)).SelectMany(item => item).ToList();
-        var fragments = GetEmbeddings(Chunks(pages, file));
-        
-        return fragments.ToList();
+        var chunks = Chunks(pages, file).ToList();
+        var fragments = GetEmbeddings(chunks).ToList();
+
+        return fragments;
     }
 }
