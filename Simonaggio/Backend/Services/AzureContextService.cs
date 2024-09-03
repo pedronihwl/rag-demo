@@ -160,28 +160,31 @@ public class AzureContextService(
     private record FragmentRecord(int Page, string File, int index);
 
 
-    public static int[] ExpandArray(int[] input, int max)
+    private static int[] ExpandArray(int[] pages, int max)
     {
-        var expandedList = new List<int>();
+        HashSet<int> result = new HashSet<int>(); 
 
-        foreach (var num in input)
+        foreach (int page in pages)
         {
-            for (int i = num - 1; i >= (num > 0 ? num - 3 : num); i--)
+            if (page == 0)
             {
-                if (i >= 0)
-                    expandedList.Add(i);
+                result.Add(0);
+                result.Add(1);
             }
-            
-            expandedList.Add(num);
-
-            for (int i = num + 1; i <= num + 3; i++)
+            else if (page >= max)
             {
-                if (i <= max) 
-                    expandedList.Add(i);
+                result.Add(page - 1);
+                result.Add(page);
+            }
+            else
+            {
+                result.Add(page - 1);
+                result.Add(page);
+                result.Add(page + 1);
             }
         }
-        
-        return expandedList.Distinct().OrderBy(n => n).ToArray();
+
+        return result.OrderBy(x => x).ToArray(); // Retornando o array ordenado
     }
     
     public async Task<MemoryStream> DownloadFragmentAsync(string[] fonts, string context, CancellationToken cancelToken)
@@ -243,7 +246,7 @@ public class AzureContextService(
 
                     for (var i = 0; i < pages.Length; i++)
                     {
-                        var doc = pdfDocument.Pages[pages[i] + 1];
+                        var doc = pdfDocument.Pages[pages[i]];
                         pagePdf.AddPage(doc);
                     }
                 }
