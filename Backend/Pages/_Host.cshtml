@@ -1,0 +1,33 @@
+@page "/"
+@using NetEscapades.AspNetCore.SecurityHeaders
+@namespace Backend.Pages
+@inject IHostEnvironment hostEnvironment
+@inject IConfiguration config
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery antiForgery
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+
+@{
+    Layout = null;
+
+    string source;
+    if (hostEnvironment.IsDevelopment())
+    {
+        var httpClient = new HttpClient();
+        source = await httpClient.GetStringAsync($"{config["SpaDevServerUrl"]}/index.html");
+    }
+    else
+    {
+        source = await System.IO.File.ReadAllTextAsync("./wwwroot/index.html");
+    }
+
+    var nonce = HttpContext.GetNonce();
+
+    source = source.Replace("**REPLACE_THIS_VALUE_WITH_SAFE_NONCE**", nonce);
+
+    var xsrf = antiForgery.GetAndStoreTokens(HttpContext);
+    var requestToken = xsrf.RequestToken;
+    Response.Cookies.Append("xsrf-token", requestToken ?? "", new CookieOptions() { HttpOnly = false, IsEssential = true, Secure = true, SameSite = SameSiteMode.Strict });
+}
+
+@Html.Raw(source)
