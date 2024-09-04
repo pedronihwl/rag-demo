@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { DbFile } from "@/types/@types";
 import { FilePdf, Trash, UploadSimple } from "@phosphor-icons/react";
 import clsx from "clsx";
 import { useRef, useState } from "react";
@@ -14,7 +15,7 @@ const FileUploader = ({ files, action }: IProps) => {
     const [dragActive, setDragActive] = useState(false);
 
     const handleFiles = (fileList: FileList) => {
-        const auxFiles = [];
+        const auxFiles : Partial<DbFile>[]= [];
 
         for (let i = 0; i < fileList.length; i++) {
             const file = fileList[i];
@@ -33,7 +34,7 @@ const FileUploader = ({ files, action }: IProps) => {
                 stream: file,
                 mime: file.type,
                 size: (file.size / (1024 * 1024)),
-                id: i
+                id: `${i}`
             });
         }
 

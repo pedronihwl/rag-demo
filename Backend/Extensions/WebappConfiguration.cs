@@ -51,7 +51,7 @@ internal static class WebappConfiguration
 
         var result = await service.ChatAsync(request, contextId, cancelToken);
         
-        return TypedResults.Ok(result ?? "");
+        return TypedResults.Ok(result);
     }
 
     private static Task<IResult> OnDeleteFile(

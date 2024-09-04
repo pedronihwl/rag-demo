@@ -4,11 +4,72 @@ import { useState } from "react";
 import FileUploader from "./components/FileUploader";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { useMutation } from "@tanstack/react-query";
+import { useApi } from "@/services/useApi";
+import { DbContext, DbFile } from "@/types/@types";
+import { useNavigate } from "react-router-dom";
+
+import { Loader2 } from "lucide-react"
 
 
 const Home = () => {
+    const nav = useNavigate()
+    const { api } = useApi()
+
+    const { mutate: findContext, isPending: isLoading } = useMutation({
+        mutationFn: async (id: string) => {
+            const response = await api.request<DbContext>({
+                url: `/context/${id}`
+            })
+
+            return response.id;
+        }
+    })
+
+    const { mutate, isPending } = useMutation({
+        mutationFn: async (files: Partial<DbFile>[]) => {
+            const formData = new FormData()
+
+            files.forEach(file => {
+                if (file.hash && file.stream) {
+                    formData.append(file.hash, file.stream)
+                }
+            })
+
+            const response = await api.request<DbContext>({
+                url: '/context',
+                method: 'POST',
+                data: formData
+            })
+
+            return response
+        }
+    })
+
     const [files, setFiles] = useState<any[]>([])
+    const [value, setValue] = useState('')
     const [toggle, setToggle] = useState(true)
+
+    const onPostContext = () => {
+        if (files.length == 0) {
+            return;
+        }
+
+        mutate(files, {
+            onSuccess: (data) => {
+                nav(`/context/${data.id}`)
+            }
+        })
+    }
+
+    const onGetContext = () => {
+        if (!value) return;
+        findContext(value, {
+            onSuccess: (data) => {
+                nav(`/context/${data}`)
+            }
+        })
+    }
 
     return <div className="flex items-center justify-center w-full h-full">
         <Card>
@@ -22,20 +83,25 @@ const Home = () => {
                     <FileUploader action={setFiles} files={files} />
                 </CardContent>
                 <CardFooter>
-                    {files.length > 0 && <Button className="w-full">Enviar arquivos e criar contexto</Button>}
+                    {files.length > 0 && <Button disabled={isPending} className="w-full" onClick={onPostContext}>
+                        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Enviar arquivos e criar contexto
+                    </Button>}
                 </CardFooter>
             </> : <>
                 <CardFooter className="flex items-center space-y-6">
                     <div>
                         <Label htmlFor="contextId">ID do Contexto</Label>
-                        <Input className="w-[280px] outline-none" id="contextId" />
+                        <Input className="w-[280px] outline-none" id="contextId" value={value} onChange={e => setValue(e.target.value)} />
                     </div>
-                    <Button type="submit" className="ml-4 w-full">Buscar</Button>
+                    <Button type="button" className="ml-4 w-full" onClick={onGetContext}>
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Buscar
+                    </Button>
                 </CardFooter>
             </>}
         </Card>
     </div>
-
 }
 
 export default Home;

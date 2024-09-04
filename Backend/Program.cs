@@ -47,16 +47,12 @@ services.AddAntiforgery(options =>
 services.AddHttpClient();
 services.AddRazorPages();
 
-services.AddControllersWithViews(options =>
+builder.Services.ConfigureHttpJsonOptions(options =>
 {
-    options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
-    options.Filters.Add(new IgnoreAntiforgeryTokenAttribute());
-
-}).AddJsonOptions(options =>
-{
-    options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-    options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    options.SerializerOptions.PropertyNameCaseInsensitive = true;
 });
 
 services.AddSingleton<CosmosClient>(prov =>

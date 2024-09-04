@@ -1,65 +1,44 @@
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
+import { DbFile, DbFileStatus, Map } from "@/types/@types";
 import { Trash } from "@phosphor-icons/react";
-
-
-export type FileType = {
-    name: string;
-    status: string;
-    totalPages: number;
-    processedPages: number;
-    chunks: number;
-}
+import clsx from "clsx";
+import { CircleCheck, Loader2, MinusCircle } from "lucide-react";
+import { ElementType } from "react";
 
 type IProps = {
-    file: FileType;
-    onDelete: (file: FileType) => void;
+    file: DbFile;
+    onDelete: (file: DbFile) => void;
 }
 
-const convertStatus = (status: string): { label: string, color: string } => {
-
-    switch (status) {
-        case "NOT_PROCESSED":
-            return {
-                label: "Criado",
-                color: ""
-            }
-        case "PROCESSING":
-            return {
-                label: "Processando",
-                color: ""
-            }
-        case "PROCESSED":
-            return {
-                label: "Processado",
-                color: ""
-            }
-
-        default:
-            return {
-                label: "Desconhecido",
-                color: ""
-            }
-    }
+const getStatus: Map<DbFileStatus, { color: string, label: string, icon: ElementType }> = {
+    "PROCESSED": { color: "#22c55e", label: "Processado", icon: CircleCheck },
+    "NOT_PROCESSED": { color: "#71717a", label: "Criado", icon: MinusCircle },
+    "PROCESSING": { color: "#eab308", label: "Processando", icon: Loader2 }
 }
 
 const FileContainer = ({ file, onDelete }: IProps) => {
-    const { label, color } = convertStatus(file.status)
-    const value = (file.processedPages / file.totalPages) * 100
+    const { label, color, icon: Icon } = getStatus[file.status]
+    const value = (file.processedPages / file.pages) * 100
 
-    return <Card className="px-4 py-2">
-        <div className="flex justify-between">
-            <Badge>{label}</Badge>
-            <Badge>{file.chunks} Chunks</Badge>
-            <Trash size={18} onClick={() => onDelete(file)} weight="light" className="mt-0.5 hover:cursor-pointer hover:text-red-900" />
-        </div>
-        <p className="leading-7">{file.name}</p>
-        <div>
-            <Label className="ml-2">{file.processedPages}/{file.totalPages} Páginas</Label>
-            <Progress value={value} className={`${color}`}></Progress>
-        </div>
+    return <Card>
+        <CardHeader>
+            <div className="flex justify-between">
+                <Label>{file.name}</Label>
+                <Trash size={18} className="hover:cursor-pointer hover:text-red-900" onClick={() => onDelete(file)} />
+            </div>
+            <div>
+                <div className="flex">
+                    <Icon color={color} className={clsx(
+                        'mt-1 mr-2 h-4 w-4',
+                        {
+                            'animate-spin': file.status === "PROCESSING"
+                        })} />
+                    <span style={{ color }}>{label}</span>
+                    <p className="ml-5">{value}%</p>
+                </div>
+            </div>
+        </CardHeader>
     </Card>
 
 }
