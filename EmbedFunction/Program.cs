@@ -6,80 +6,93 @@ using Azure.Storage.Blobs;
 using EmbedFunction;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Fluent;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Azure;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using OpenAI;
 using Shared.Extensions;
 using Shared.Options;
 using Shared.Serializer;
 using Shared.Services;
 
-var builder = Host.CreateApplicationBuilder(args);
+var credential = new DefaultAzureCredential();
 
-builder.Configuration.ConfigureAzureKeyVault(new DefaultAzureCredential());
+var builder = new HostBuilder();
 
-builder.Services.AddLogging();
-
-builder.Services.AddAzureClients(opt =>
+builder.ConfigureAppConfiguration((context, config) =>
 {
-    opt.AddDocumentAnalysisClient(new Uri("https://cog-formreconizer.cognitiveservices.azure.com/"), new AzureKeyCredential("846e4b12958f4af9b795189a1dd1934c"));
+    config.ConfigureAzureKeyVault(credential);
 });
 
-builder.Services.AddOptions<CosmosDbOptions>()
-    .Configure<IConfiguration>(
-        (settings, configuration) => 
-            configuration.GetSection("azureServiceOptions").Bind(settings));
-
-builder.Services.AddSingleton<EmbedService>();
-
-builder.Services.AddSingleton<CosmosClient>(prov =>
+builder.ConfigureServices((context, services) =>
 {
-    var config = prov.GetRequiredService<IConfiguration>();
+    IConfiguration configuration = context.Configuration;
 
-    var azureCosmosDbEndpoint = config["azureCosmosEndpoint"];
-    ArgumentException.ThrowIfNullOrEmpty(azureCosmosDbEndpoint);
-    
-    var azureCosmosDbToken = config["azureCosmosToken"];
-    ArgumentException.ThrowIfNullOrEmpty(azureCosmosDbEndpoint);
-    
-    CosmosClient client = new CosmosClientBuilder(azureCosmosDbEndpoint, azureCosmosDbToken)
-        .WithCustomSerializer(new CosmosSystemTextJsonSerializer(new JsonSerializerOptions()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            Converters = { new JsonStringEnumConverter() }
-        }))
-        .Build();
+    services.AddLogging();
 
-    return client;
+    services.AddApplicationInsightsTelemetryWorkerService();
+    services.ConfigureFunctionsApplicationInsights();
+
+    services.AddAzureClients(opt =>
+    {
+        opt.AddDocumentAnalysisClient(
+            new Uri("https://cog-formreconizer.cognitiveservices.azure.com/"),
+            new AzureKeyCredential("846e4b12958f4af9b795189a1dd1934c"));
+    });
+
+    services.Configure<CosmosDbOptions>(configuration.GetSection("azureServiceOptions"));
+
+    services.AddSingleton<EmbedService>();
+
+    services.AddSingleton<CosmosClient>(prov =>
+    {
+        var config = prov.GetRequiredService<IConfiguration>();
+        var azureCosmosDbEndpoint = config["azureCosmosEndpoint"];
+        ArgumentException.ThrowIfNullOrEmpty(azureCosmosDbEndpoint);
+        
+        var azureCosmosDbToken = config["azureCosmosToken"];
+        ArgumentException.ThrowIfNullOrEmpty(azureCosmosDbToken);
+        
+        return new CosmosClientBuilder(azureCosmosDbEndpoint, azureCosmosDbToken)
+            .WithCustomSerializer(new CosmosSystemTextJsonSerializer(new JsonSerializerOptions()
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Converters = { new JsonStringEnumConverter() }
+            }))
+            .Build();
+    });
+
+    services.AddSingleton<BlobServiceClient>(sp =>
+    {
+        var config = sp.GetRequiredService<IConfiguration>();
+        var azureStorageToken = config["stAccountToken"];
+        ArgumentException.ThrowIfNullOrEmpty(azureStorageToken);
+        return new BlobServiceClient(azureStorageToken);
+    });
+
+    services.AddSingleton<BlobContainerClient>(sp =>
+    {
+        var config = sp.GetRequiredService<IConfiguration>();
+        var azureStorageContainer = config["stAccountContainer"];
+        return sp.GetRequiredService<BlobServiceClient>().GetBlobContainerClient(azureStorageContainer);
+    });
+
+    services.AddSingleton<AzureEmbedService>(sp =>
+    {
+        var model = Environment.GetEnvironmentVariable("OPENAI_EMBEDDING_DEPLOYMENT") 
+            ?? throw new ArgumentException("env OPENAI_EMBEDDING_DEPLOYMENT not found");
+        var key = Environment.GetEnvironmentVariable("OPENAI_TOKEN") 
+            ?? throw new ArgumentException("env OPENAI_TOKEN not found");
+        
+        return ActivatorUtilities.CreateInstance<AzureEmbedService>(sp, new OpenAIClient(key), model);
+    });
+
+    services.AddHostedService<Worker>();
 });
 
-builder.Services.AddSingleton<BlobServiceClient>(sp =>
-{
-    var config = sp.GetRequiredService<IConfiguration>();
-    
-    var azureStorageToken = config["stAccountToken"];
-    ArgumentException.ThrowIfNullOrEmpty(azureStorageToken);
-
-    var blobServiceClient = new BlobServiceClient(azureStorageToken);
-
-    return blobServiceClient;
-});
-
-builder.Services.AddSingleton<BlobContainerClient>(sp =>
-{
-    var config = sp.GetRequiredService<IConfiguration>();
-    var azureStorageContainer = config["stAccountContainer"];
-    return sp.GetRequiredService<BlobServiceClient>().GetBlobContainerClient(azureStorageContainer);
-});
-
-builder.Services.AddSingleton<AzureEmbedService>(sp =>
-{
-    var model = Environment.GetEnvironmentVariable("OPENAI_EMBEDDING_DEPLOYMENT") ?? throw new ArgumentException("env OPENAI_EMBEDDING_DEPLOYMENT not found");
-    var key = Environment.GetEnvironmentVariable("OPENAI_TOKEN") ?? throw new ArgumentException("env OPENAI_OPENAI_TOKEN not found");
-
-    return ActivatorUtilities.CreateInstance<AzureEmbedService>(sp, new OpenAIClient(key), model);
-});
-
-builder.Services.AddHostedService<Worker>();
+builder.ConfigureFunctionsWorkerDefaults();
 
 var host = builder.Build();
 host.Run();

@@ -1,10 +1,11 @@
 ﻿{
-  "$schema": "http://json.schemastore.org/launchsettings.json",
   "profiles": {
-    "EmbedFunction": {
+    "embed-files": {
       "commandName": "Project",
-      "dotnetRunMessages": true,
+      "commandLineArgs": "--port 7037",
       "environmentVariables": {
+        "AZURE_FUNCTIONS_ENVIRONMENT": "Development", 
+        "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated", 
         "DOTNET_ENVIRONMENT": "Development",
         "OPENAI_EMBEDDING_DEPLOYMENT": "text-embedding-ada-002",
         "OPENAI_TOKEN": "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",

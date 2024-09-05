@@ -1,0 +1,22 @@
+{
+  "version": "2.0",
+  "extensions": {
+    "cosmosDB": {
+      "maxItemsPerInvocation": 100,   // Define o número máximo de itens a serem processados por invocação.
+      "connectionMode": "Gateway",    // Define o modo de conexão: "Gateway" ou "Direct".
+      "leaseOptions": {
+        "leasePrefix": "myapp_",      // Prefixo para leases, útil quando múltiplas coleções compartilham o mesmo container de leases.
+        "leaseRenewInterval": "00:00:15",  // Intervalo para renovação de leases (15 segundos).
+        "leaseAcquireInterval": "00:00:15",  // Intervalo para aquisição de leases (15 segundos).
+        "leaseExpirationInterval": "00:01:00",  // Intervalo para expiração de leases (1 minuto).
+        "feedPollDelay": "00:00:05"   // Delay entre verificações no feed de mudanças (5 segundos).
+      },
+      "leaseCollectionThroughput": 400,  // Define o throughput dedicado para a coleção de leases.
+      "checkpointFrequency": {
+        "explicitCheckpoint": false,  // Se true, você controla manualmente quando um checkpoint é criado.
+        "timeInterval": "00:05:00",   // Frequência com que o checkpoint é feito (5 minutos).
+        "processedDocumentCount": 10  // Número de documentos processados antes de fazer o checkpoint.
+      }
+    }
+  }
+}
