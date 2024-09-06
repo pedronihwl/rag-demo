@@ -1,9 +1,8 @@
+import { handleFiles } from "@/components/functions/handleFiles";
 import { Button } from "@/components/ui/button";
-import { DbFile } from "@/types/@types";
 import { FilePdf, Trash, UploadSimple } from "@phosphor-icons/react";
 import clsx from "clsx";
 import { useRef, useState } from "react";
-
 
 type IProps = {
     files: any[]
@@ -13,33 +12,6 @@ type IProps = {
 const FileUploader = ({ files, action }: IProps) => {
     const inputRef = useRef<HTMLInputElement>(null);
     const [dragActive, setDragActive] = useState(false);
-
-    const handleFiles = (fileList: FileList) => {
-        const auxFiles : Partial<DbFile>[]= [];
-
-        for (let i = 0; i < fileList.length; i++) {
-            const file = fileList[i];
-
-            if (file.type !== 'application/pdf') {
-                continue
-            }
-
-            const fileName = file.name
-                .replace(/[^\w\s.]/gi, "")
-                .replace(/\s+/g, "_")
-                .toLowerCase();
-
-            auxFiles.push({
-                hash: fileName,
-                stream: file,
-                mime: file.type,
-                size: (file.size / (1024 * 1024)),
-                id: `${i}`
-            });
-        }
-
-        action(auxFiles)
-    };
 
     const handleChange = (
         e: React.DragEvent<HTMLDivElement> | React.ChangeEvent<HTMLInputElement>
@@ -55,11 +27,11 @@ const FileUploader = ({ files, action }: IProps) => {
             } else if (e.type === "drop") {
                 setDragActive(false);
                 if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                    handleFiles(e.dataTransfer.files);
+                    handleFiles(e.dataTransfer.files, action);
                 }
             }
         } else if (e.target.files && e.target.files[0]) {
-            handleFiles(e.target.files);
+            handleFiles(e.target.files, action);
         }
     };
 

@@ -1,29 +1,47 @@
-import { FileType } from "@/pages/Chat/components/FileContainer";
 
-const fileMocks: FileType[] = [
+const conversation: any[] = [
+    { role: 'user', content: 'Olá, pode me ajudar com um problema de programação?' },
+    { role: 'assistant', content: 'Claro! Em que posso te ajudar?' },
+    { role: 'user', content: 'Estou tentando fazer um filtro dinâmico em JavaScript.' },
     {
-        name: "Document1.pdf",
-        status: "Processing",
-        totalPages: 120,
-        processedPages: 45,
-        chunks: 10
+        role: 'assistant',
+        content: {
+            answer: 'Você pode usar a função `filter()` para criar filtros dinâmicos. Aqui está um exemplo simples:',
+            fonts: ['https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter'],
+            files: []
+        }
     },
+    { role: 'user', content: 'Obrigado! E como eu posso combinar múltiplos filtros?' },
     {
-        name: "Report2024.pdf",
-        status: "Completed",
-        totalPages: 80,
-        processedPages: 80,
-        chunks: 15
+        role: 'assistant',
+        content: {
+            answer: 'Você pode encadear múltiplas chamadas `filter()` ou combinar condições dentro de um único filtro.',
+            fonts: ['https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter#multiple_filters'],
+            files: []
+        }
     },
+    { role: 'user', content: 'Pode me mostrar um exemplo com múltiplos filtros encadeados?' },
     {
-        name: "Draft_Notes.pdf",
-        status: "Pending",
-        totalPages: 50,
-        processedPages: 0,
-        chunks: 5
-    }
+        role: 'assistant',
+        content: {
+            answer: 'Claro! Aqui está um exemplo de como encadear filtros para um array de números:',
+            fonts: [],
+            files: ['filterExample.js']
+        }
+    },
+    { role: 'user', content: 'Ótimo! Isso ajudou muito. Muito obrigado!' },
+    { role: 'assistant', content: 'De nada! Se precisar de mais alguma coisa, estou aqui para ajudar.' },
+    { role: 'user', content: 'Pode me mostrar um exemplo com múltiplos filtros encadeados?' },
+    {
+        role: 'assistant',
+        content: {
+            answer: 'Claro! Aqui está um exemplo de como encadear filtros para um array de números:',
+            fonts: [],
+            files: ['filterExample.js']
+        }
+    },
+    { role: 'user', content: 'Ótimo! Isso ajudou muito. Muito obrigado!' },
+    { role: 'assistant', content: 'De nada! Se precisar de mais alguma coisa, estou aqui para ajudar.' }
 ];
 
-export {
-    fileMocks
-}
+export { conversation } 

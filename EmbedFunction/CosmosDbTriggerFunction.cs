@@ -1,4 +1,5 @@
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Logging;
 using Shared.Collections;
 using Shared.Extensions;
 
@@ -15,6 +16,8 @@ public sealed class CosmosDbTriggerFunction(EmbedService service, ILoggerFactory
         IReadOnlyList<FileCollection> input
         )
     {
+        await Task.Delay(1500); // Wait 1.5 seconds
+        
         foreach (var file in input)
         {
             if (file.Status == FileCollection.FileStatus.NotProcessed)

@@ -14,7 +14,15 @@ export const router = createBrowserRouter(
     )
 );
 
-const client = new QueryClient()
+const client = new QueryClient({
+    defaultOptions: {
+      queries: {
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        retry: false
+      },
+    },
+  });
 
 const App = () => {
     return <ServiceContextProvider>

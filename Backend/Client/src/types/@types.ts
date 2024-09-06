@@ -3,7 +3,13 @@ export type Map<K extends string | number | symbol, V> = {
     [key in K]: V;
 };
 
-export type DbFileStatus = 'PROCESSED' | 'NOT_PROCESSED' | 'PROCESSING'
+export type DbFileStatus = 'Processed' | 'NotProcessed' | 'Processing' | 'ProcessingFailed'
+
+export type Answer = {
+    answer: string;
+    fonts: string[];
+    files: { source: string; reference: string}[];
+}
 
 export type DbFile = {
     id: string;

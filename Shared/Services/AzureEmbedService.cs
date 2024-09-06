@@ -281,6 +281,7 @@ public class AzureEmbedService(
         List<PageDetail> detailedPages = [];
 
         _logger.LogInformation("1/3 Splitting .pdf into pages and extracting text with Document Intelligence");
+
         for (int i = 0; i < document.Pages.Count; i++)
         {
             var page = document.Pages[i];
@@ -288,12 +289,12 @@ public class AzureEmbedService(
             var convertedPages = (await GetDocumentTextAsync(page, i));
             detailedPages.AddRange(convertedPages);
             
-            file.ProcessedPages += (i + 1);
+            file.ProcessedPages = (i + 1);
             
             _logger.LogInformation("Processed pages {index}/{total} from file: {name}", (i + 1), file.Pages, file.Name);
-            Callback(file, (int) Math.Ceiling((double) file.ProcessedPages / file.Pages));
+            Callback(file, (int) Math.Ceiling((double) (i + 1) / file.Pages));
         }
-        _logger.LogInformation("2/3 Chuncking .pdf into fragments");
+        _logger.LogInformation("2/3 Chunking .pdf into fragments");
         var chunks = Chunks(detailedPages, file).ToList();
 
         file.Chunks = chunks.Count;

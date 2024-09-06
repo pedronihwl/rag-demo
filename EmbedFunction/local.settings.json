@@ -1,6 +1,11 @@
 {
   "IsEncrypted": false,
   "Values": {
+    "logging:logLevel:Microsoft": "None",
+    "logging:logLevel:Worker": "None",
+    "AzureFunctionsJobHost:logging:logLevel:default": "None",
+    "AzureFunctionsJobHost:logging:logLevel:Function.embed-file.User": "Information",
+    "AzureFunctionsJobHost:logging:logLevel:Host.Function.Console": "Information",
     "COSMOSDB_COLLECTION": "simonaggio-docs",
     "COSMOSDB_CONTEXTS": "db_contexts",
     "COSMOSDB_FILES": "db_files",

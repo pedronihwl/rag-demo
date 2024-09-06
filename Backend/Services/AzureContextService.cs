@@ -63,7 +63,7 @@ public class AzureContextService(
                                      ... content
                                      ## END FRAGMENT
 
-                                     - **Fragment {pageNumber}-{id}**: Indica o início de um fragmento de texto. O `{pageNumber}` é o número da página onde o fragmento foi encontrado e `{id}` é um identificador único para o fragmento.
+                                     - **Fragment {pageNumber}-{fileId}-{id}**: Indica o início de um fragmento de texto. O `{pageNumber}` é o número da página onde o fragmento foi encontrado, `{fileId}` é o identificador único do arquivo e `{id}` é um identificador único para o fragmento.
                                      - **... content**: Representa o conteúdo do fragmento de texto. Este é o texto que será analisado para responder às perguntas.
                                      - **## END FRAGMENT**: Indica o final do fragmento de texto.
 
@@ -122,7 +122,7 @@ public class AzureContextService(
                                                            "type":"array",
                                                            "items":{
                                                               "type":"string",
-                                                              "description":"O identificador do fragmento no formato {pageNumber}-{fileId}-{id}"
+                                                              "description":"O identificador do fragmento no formato {pageNumber}-{fileId}-{id}. exemplo: 20-file_61955ae8-0 "
                                                            },
                                                            "description":"Os fragmentos onde a informação foi localizada"
                                                         }
@@ -147,7 +147,7 @@ public class AzureContextService(
         });
 
         var aux = fragments?
-            .Select(n => $"{n?["file"]}").Where(x => !string.IsNullOrEmpty(x)).Distinct()
+            .Select(n => new { source = $"{n?["text"]}", reference = $"{n?["file"]}" })
             .Select(x => JsonSerializer.SerializeToNode(x))
             .ToArray() ?? [];
         
@@ -157,13 +157,19 @@ public class AzureContextService(
     }
 
 
-    private record FragmentRecord(int Page, string File, int index);
+    private record FragmentRecord(int Page, string File, int Index);
 
 
     private static int[] ExpandArray(int[] pages, int max)
     {
-        HashSet<int> result = new HashSet<int>(); 
+        HashSet<int> result = new HashSet<int>();
 
+        if (pages.Length == 1 && pages[0] == max)
+        {
+            result.Add(max);
+            return result.ToArray();
+        }
+        
         foreach (int page in pages)
         {
             if (page == 0)
@@ -189,7 +195,7 @@ public class AzureContextService(
     
     public async Task<MemoryStream> DownloadFragmentAsync(string[] fonts, string context, CancellationToken cancelToken)
     {
-        string pattern = @"^\d-file_\w{8}-\d$";
+        string pattern = @"^\d+-file_\w{8}-\d+$";
         Regex regex = new Regex(pattern);
         
         var aux = new List<FragmentRecord>();

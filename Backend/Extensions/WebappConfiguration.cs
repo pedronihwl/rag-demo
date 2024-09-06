@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using Shared;
+using Shared.Extensions;
 
 namespace Backend.Extensions;
 
@@ -54,14 +55,14 @@ internal static class WebappConfiguration
         return TypedResults.Ok(result);
     }
 
-    private static Task<IResult> OnDeleteFile(
+    private static async Task<IResult> OnDeleteFile(
         string id,
         [FromQuery] string context,
         [FromServices] AzureContextService service,
         CancellationToken cancelToken)
     {
-        _ = service.DeleteFile(id, context, cancelToken);
-        return Task.FromResult<IResult>(TypedResults.NoContent());
+        await service.DeleteFile(id, context, cancelToken);
+        return TypedResults.NoContent();
     }
 
     private static async Task<IResult> OnGetContext(

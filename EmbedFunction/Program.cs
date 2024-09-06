@@ -31,9 +31,6 @@ builder.ConfigureServices((context, services) =>
 {
     services.AddLogging();
 
-    services.AddApplicationInsightsTelemetryWorkerService();
-    services.ConfigureFunctionsApplicationInsights();
-
     services.AddAzureClients(opt =>
     {
         opt.AddDocumentAnalysisClient(
