@@ -58,7 +58,6 @@ public class Worker(
             {
                 logger.LogWarning("Entity not found: {message}",string.Join(":", values));
                 continue;
-                
             }
 
             await service.EmbedAsync(ctx);

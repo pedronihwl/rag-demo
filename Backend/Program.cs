@@ -102,11 +102,17 @@ services.AddOptions<CosmosDbOptions>()
 
 services.AddSingleton<AzureContextService>(sp =>
 {
-    var embedding = Environment.GetEnvironmentVariable("OPENAI_EMBEDDING_DEPLOYMENT") ?? throw new ArgumentException("env OPENAI_EMBEDDING_DEPLOYMENT not found");
-    var key = Environment.GetEnvironmentVariable("OPENAI_TOKEN") ?? throw new ArgumentException("env OPENAI_OPENAI_TOKEN not found");
+    var config = sp.GetRequiredService<IConfiguration>();
+        
+    string embeddingModel = Environment.GetEnvironmentVariable("OPENAI_EMBEDDING_DEPLOYMENT") 
+                            ?? throw new ArgumentException("env OPENAI_EMBEDDING_DEPLOYMENT not found");
+        
+    string key = config["openaiKey"]
+                 ?? throw new ArgumentException("env OPENAI_TOKEN not found");
+    
     var chat = Environment.GetEnvironmentVariable("OPENAI_CHAT_DEPLOYMENT") ?? throw new ArgumentException("env OPENAI_CHAT_DEPLOYMENT not found");
     
-    return ActivatorUtilities.CreateInstance<AzureContextService>(sp, new OpenAIClient(key), embedding, chat);
+    return ActivatorUtilities.CreateInstance<AzureContextService>(sp, new OpenAIClient(key), embeddingModel, chat);
 });
 
 

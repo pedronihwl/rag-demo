@@ -14,8 +14,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="AspNetCore.Proxy" Version="4.5.0" />
-        <PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders" Version="0.18.0" />
+        <PackageReference Include="AspNetCore.Proxy"/>
+        <PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders"/>
         <PackageReference Include="Azure.Identity" />
         <PackageReference Include="Azure.Storage.Blobs"/>
         <PackageReference Include="Microsoft.Azure.Cosmos"/>

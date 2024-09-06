@@ -36,12 +36,8 @@ public class AzureEmbedService(
 
         ms.Position = 0;
 
-        // TODO: Ring buffer. Avoid Too many requests
-        var result = await Task.Run(async () =>
-        {
-            var operation = await documentAnalysisClient.AnalyzeDocumentAsync(WaitUntil.Completed, "prebuilt-layout", ms);
-            return await operation.WaitForCompletionAsync();
-        });
+        var operation = await documentAnalysisClient.AnalyzeDocumentAsync(WaitUntil.Completed, "prebuilt-layout", ms);
+        var result = await operation.WaitForCompletionAsync();
         
         var offset = 0;
         List<PageDetail> pageMap = [];
@@ -268,39 +264,42 @@ public class AzureEmbedService(
             yield return fragment;
         }
     }
+
+    private void Callback(FileCollection file, int percent)
+    {
+        ProgressChanged?.Invoke(new ProgressChangedEventArgs(percent, file));
+    }
     
     public async Task<IReadOnlyList<Fragment>> EmbedPDFBlobAsync(Stream pdfBlobStream, FileCollection file)
     {
         using var document = PdfReader.Open(pdfBlobStream, PdfDocumentOpenMode.Import);
-        _logger.LogInformation("Start embedding {name} with {pages} pages from {ctx}", file.Name, document.Pages.Count, file.Context);
 
         file.Pages = document.Pages.Count;
-        file.Status = FileCollection.FileStatus.PROCESSING;
         
-        ProgressChanged?.Invoke(new ProgressChangedEventArgs(1,file));
+        Callback(file, 1);
 
-        int processedPages = 0;
+        List<PageDetail> detailedPages = [];
 
-        var tasks = new Task<IReadOnlyList<PageDetail>>[document.Pages.Count];
-
+        _logger.LogInformation("1/3 Splitting .pdf into pages and extracting text with Document Intelligence");
         for (int i = 0; i < document.Pages.Count; i++)
         {
             var page = document.Pages[i];
-            tasks[i] = GetDocumentTextAsync(page, i).ContinueWith(t =>
-            {
-                if (t.IsFaulted) return t.Result;
-                
-                file.ProcessedPages = ++processedPages;
-                _logger.LogInformation("Processed {processed}/{total} from {fileName}", processedPages, file.Pages, file.Name);
-                    
-                ProgressChanged?.Invoke(new ProgressChangedEventArgs((int)Math.Ceiling((double)file.ProcessedPages / file.Pages), file));
 
-                return t.Result;
-            });
+            var convertedPages = (await GetDocumentTextAsync(page, i));
+            detailedPages.AddRange(convertedPages);
+            
+            file.ProcessedPages += (i + 1);
+            
+            _logger.LogInformation("Processed pages {index}/{total} from file: {name}", (i + 1), file.Pages, file.Name);
+            Callback(file, (int) Math.Ceiling((double) file.ProcessedPages / file.Pages));
         }
+        _logger.LogInformation("2/3 Chuncking .pdf into fragments");
+        var chunks = Chunks(detailedPages, file).ToList();
 
-        var pages = (await Task.WhenAll(tasks)).SelectMany(item => item).ToList();
-        var chunks = Chunks(pages, file).ToList();
+        file.Chunks = chunks.Count;
+        Callback(file, 100);
+        
+        _logger.LogInformation("3/3 Embedding .pdf with OpenAi embeddings");
         var fragments = GetEmbeddings(chunks).ToList();
 
         return fragments;

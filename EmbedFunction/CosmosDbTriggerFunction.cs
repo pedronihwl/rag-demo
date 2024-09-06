@@ -1,27 +1,29 @@
-using System.Reflection.Metadata;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Extensions.Logging;
 using Shared.Collections;
+using Shared.Extensions;
 
 namespace EmbedFunction;
 
-public static class CosmosDbTriggerFunction
+public sealed class CosmosDbTriggerFunction(EmbedService service, ILoggerFactory factory)
 {
+
+    private readonly ILogger<CosmosDbTriggerFunction> _logger = factory.CreateLogger<CosmosDbTriggerFunction>();
+    
     [Function("embed-file")]
-    public static void Run(
-        [CosmosDBTrigger(
-            "simonaggio-docs",
-            "db_files",
-            Connection = "",
-            LeaseContainerName = "db_leases",
-            CreateLeaseContainerIfNotExists = true)] IReadOnlyList<FileCollection> input,
-        ILogger log)
+    public async Task Run(
+        [CosmosDBTrigger("simonaggio-docs", "db_files", CreateLeaseContainerIfNotExists = true)] 
+        IReadOnlyList<FileCollection> input
+        )
     {
-        if (input != null && input.Count > 0)
+        foreach (var file in input)
         {
-            foreach (var document in input)
+            if (file.Status == FileCollection.FileStatus.NotProcessed)
             {
-                log.LogInformation($"Documento inserido no Cosmos DB com ID: {document.Id}");
+                await service.EmbedAsync(file);
+            }
+            else
+            {
+                _logger.LogInformation("The file has already been processed. id: {id}, name: {name}, context: {context}", file.Id, file.Name, file.Context);
             }
         }
     }

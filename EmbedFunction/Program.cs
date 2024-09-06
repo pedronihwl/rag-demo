@@ -4,6 +4,7 @@ using Azure;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using EmbedFunction;
+using EmbedFunction.Extensions;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Fluent;
 using Microsoft.Azure.Functions.Worker;
@@ -21,15 +22,13 @@ var credential = new DefaultAzureCredential();
 
 var builder = new HostBuilder();
 
-builder.ConfigureAppConfiguration((context, config) =>
+builder.ConfigureAppConfiguration((_, config) =>
 {
     config.ConfigureAzureKeyVault(credential);
 });
 
 builder.ConfigureServices((context, services) =>
 {
-    IConfiguration configuration = context.Configuration;
-
     services.AddLogging();
 
     services.AddApplicationInsightsTelemetryWorkerService();
@@ -41,28 +40,8 @@ builder.ConfigureServices((context, services) =>
             new Uri("https://cog-formreconizer.cognitiveservices.azure.com/"),
             new AzureKeyCredential("846e4b12958f4af9b795189a1dd1934c"));
     });
-
-    services.Configure<CosmosDbOptions>(configuration.GetSection("azureServiceOptions"));
-
+    
     services.AddSingleton<EmbedService>();
-
-    services.AddSingleton<CosmosClient>(prov =>
-    {
-        var config = prov.GetRequiredService<IConfiguration>();
-        var azureCosmosDbEndpoint = config["azureCosmosEndpoint"];
-        ArgumentException.ThrowIfNullOrEmpty(azureCosmosDbEndpoint);
-        
-        var azureCosmosDbToken = config["azureCosmosToken"];
-        ArgumentException.ThrowIfNullOrEmpty(azureCosmosDbToken);
-        
-        return new CosmosClientBuilder(azureCosmosDbEndpoint, azureCosmosDbToken)
-            .WithCustomSerializer(new CosmosSystemTextJsonSerializer(new JsonSerializerOptions()
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                Converters = { new JsonStringEnumConverter() }
-            }))
-            .Build();
-    });
 
     services.AddSingleton<BlobServiceClient>(sp =>
     {
@@ -81,18 +60,32 @@ builder.ConfigureServices((context, services) =>
 
     services.AddSingleton<AzureEmbedService>(sp =>
     {
-        var model = Environment.GetEnvironmentVariable("OPENAI_EMBEDDING_DEPLOYMENT") 
+        var config = sp.GetRequiredService<IConfiguration>();
+        
+        string embeddingModel = Environment.GetEnvironmentVariable("OPENAI_EMBEDDING_DEPLOYMENT") 
             ?? throw new ArgumentException("env OPENAI_EMBEDDING_DEPLOYMENT not found");
-        var key = Environment.GetEnvironmentVariable("OPENAI_TOKEN") 
+        
+        string key = config["openaiKey"]
             ?? throw new ArgumentException("env OPENAI_TOKEN not found");
         
-        return ActivatorUtilities.CreateInstance<AzureEmbedService>(sp, new OpenAIClient(key), model);
+        return ActivatorUtilities.CreateInstance<AzureEmbedService>(sp, new OpenAIClient(key), embeddingModel);
     });
 
     services.AddHostedService<Worker>();
+    services.AddCosmos();
 });
 
-builder.ConfigureFunctionsWorkerDefaults();
+builder.ConfigureFunctionsWorkerDefaults(opt =>
+{
+    opt.Services.Configure<JsonSerializerOptions>(jsonSerializerOptions =>
+    {
+        jsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        jsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+        jsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
+        jsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        jsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
+});
 
 var host = builder.Build();
 host.Run();
