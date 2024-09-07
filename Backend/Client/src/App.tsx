@@ -3,6 +3,7 @@ import Home from "./pages/Home";
 import Chat from "./pages/Chat";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ServiceContextProvider } from "./services/useApi";
+import { Toaster } from "./components/ui/sonner";
 
 export const router = createBrowserRouter(
     createRoutesFromElements(
@@ -27,6 +28,7 @@ const client = new QueryClient({
 const App = () => {
     return <ServiceContextProvider>
         <QueryClientProvider client={client}>
+            <Toaster />
             <RouterProvider router={router} />
         </QueryClientProvider>
     </ServiceContextProvider>

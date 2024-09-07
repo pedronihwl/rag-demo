@@ -6,6 +6,7 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Shared.Collections;
+using Shared.Extensions;
 using Shared.Options;
 using Shared.Services;
 
@@ -52,7 +53,7 @@ public class EmbedService
                 var percent = e.ProgressPercentage;
                 FileCollection collection = (FileCollection) e.UserState!;
                 
-                _logger.LogInformation("Progress: {percent}", percent);
+                _logger.LogInformation("Progress: {percent}\n{file}", percent, collection.ToJsonString());
                 dbFiles.UpsertItemAsync(collection, new PartitionKey(file.Context)).Wait();
             }
             // status - Processing

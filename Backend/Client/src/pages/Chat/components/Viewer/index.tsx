@@ -26,6 +26,7 @@ const Viewer = ({ blob }: IProps) => {
             {
                 Array.from({ length: pages }, (_, i) => i + 1).map((item) => (
                     <div
+                        key={item}
                         onClick={() => setFocused(item)}
                         className={`border-[4px] cursor-pointer relative rounded my-1 ${focused === item ? "border-green-700" : ""}`}
                     >
@@ -40,19 +41,5 @@ const Viewer = ({ blob }: IProps) => {
     </ScrollArea>
 
 }
-
-
-/**
- * 
- * <div
-                    onClick={() => setFocused(index + 1)}
-                    className={`border-[4px] cursor-pointer relative rounded my-2 ${focused === index ? "border-green-700" : ""}`}
-                  >
-                    <Page
-                      pageIndex={index + 1}
-                      pageNumber={index}
-                    ></Page>
-                  </div>
- */
 
 export default Viewer;

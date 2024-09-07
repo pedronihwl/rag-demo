@@ -10,6 +10,7 @@ import { Answer, DbContext, DbFile } from "@/types/@types";
 import Content from "./components/Content";
 import Viewer from "./components/Viewer";
 import { handleFiles } from "@/components/functions/handleFiles";
+import { toast } from "sonner";
 
 
 const Chat = () => {
@@ -73,18 +74,19 @@ const Chat = () => {
     }
     );
 
-    const { data, isError} = useQuery({
+    const { data, isError } = useQuery({
         queryFn: async () => {
             return api.request<DbContext>({
                 url: `/context/${id}`
             })
         },
-        refetchInterval: ({ state}) => {
-            if(state.status === 'success' && state.data?.files.some(file => file.status === 'Processing')){
+        refetchInterval: ({ state }) => {
+
+            if (state.status === 'success' && state.data?.files.some(file => file.status === 'Processing' || file.status === 'NotProcessed')) {
                 return 3000
             }
-            
-            return false; 
+
+            return false;
         },
         queryKey: ['context', id]
     })
@@ -114,6 +116,21 @@ const Chat = () => {
         inputRef.current?.click();
     }
 
+    const handleCopyText = (text?: string) => {
+        if (text) {
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    toast(`Copiado: ${text}`, {
+                        duration: 1000,
+                        position: 'bottom-left' 
+                      });
+                })
+                .catch((err) => {
+                    console.error('Erro ao copiar o texto: ', err);
+                });
+        }
+    };
+
     if (!data) return <div>Carregando...</div>
 
     if (isError) return <div>404</div>
@@ -123,10 +140,10 @@ const Chat = () => {
     return <div className="flex w-full h-full">
         <input accept=".pdf" ref={inputRef} style={{ display: "none" }} type="file" multiple={false} onChange={addFile}></input>
         <aside className="p-4 h-full min-w-80">
-            <Badge variant="secondary" className="cursor-pointer w-full flex justify-between py-2">{data.id}<Copy size={18} className="ml-2" /></Badge>
+            <Badge variant="secondary" className="cursor-pointer" onClick={() => handleCopyText(id)}>{id}<Copy size={18} className="ml-2" /></Badge>
             <div>
-                <Button variant="secondary" className="w-full my-4" onClick={onExplorer}>
-                    <Upload size={32} className="mr-2 h-4 w-4" /> Novo documento
+                <Button variant="outline" className="w-full my-4" onClick={onExplorer}>
+                    <Upload size={32} className="mr-2 h-4 w-4" /> Adicionar
                 </Button>
 
                 <div className="flex flex-col gap-4 mt-2">

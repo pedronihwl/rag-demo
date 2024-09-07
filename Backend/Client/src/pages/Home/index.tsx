@@ -9,7 +9,8 @@ import { useApi } from "@/services/useApi";
 import { DbContext, DbFile } from "@/types/@types";
 import { useNavigate } from "react-router-dom";
 
-import { Loader2 } from "lucide-react"
+import { Loader2, Terminal } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
 const Home = () => {
@@ -72,6 +73,15 @@ const Home = () => {
     }
 
     return <div className="flex items-center justify-center w-full h-full">
+        <div className="w-[550px]">
+        <Alert className="mb-4" variant="destructive">
+            <Terminal className="h-4 w-4" />
+            <AlertTitle>Projeto em fase inicial de desenvolvimento</AlertTitle>
+            <AlertDescription>
+                Esse projeto está em fase inicial de desenvolvimento e, portanto, é recomendado apenas para fins de teste e aprendizado. Não é indicado para uso em casos reais ou produção.
+            </AlertDescription>
+        </Alert>
+
         <Card>
             <CardHeader>
                 <CardTitle>Contexto</CardTitle>
@@ -101,6 +111,8 @@ const Home = () => {
                 </CardFooter>
             </>}
         </Card>
+        <p className="mt-4 text-sm text-muted-foreground text-white text-center">Copyright ©2024 • Todos os direitos reservados para Simonaggio</p>
+        </div>
     </div>
 }
 
