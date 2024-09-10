@@ -17,7 +17,7 @@ public class EmbedService
 
     private readonly CosmosDbOptions _options;
     private readonly ILogger<EmbedService> _logger;
-    private readonly Database _db;
+    private readonly CosmosClient _client;
     private readonly AzureEmbedService _service;
     private readonly BlobContainerClient _container;
     
@@ -29,8 +29,7 @@ public class EmbedService
     {
 
         _options = options.Value;
-        _db = client.GetDatabase(_options.DbCollection).ReadAsync().Result;
-
+        _client = client;
         _logger = logger;
         _service = service;
         _container = container;
@@ -40,8 +39,9 @@ public class EmbedService
     {
         _logger.LogInformation("Starting embedding file {id},{name},{context}", file.Id, file.Name, file.Context);
 
-        var dbFragments = _db.GetContainer(_options.DbFragments);
-        var dbFiles = _db.GetContainer(_options.DbFileName);
+        var db = (await _client.GetDatabase(_options.DbCollection).ReadAsync()).Database;
+        var dbFragments = db.GetContainer(_options.DbFragments);
+        var dbFiles = db.GetContainer(_options.DbFileName);
         
         try
         {
@@ -54,7 +54,7 @@ public class EmbedService
                 FileCollection collection = (FileCollection) e.UserState!;
                 
                 _logger.LogInformation("Progress: {percent}\n{file}", percent, collection.ToJsonString());
-                dbFiles.UpsertItemAsync(collection, new PartitionKey(file.Context)).Wait();
+                dbFiles.UpsertItemAsync(collection, new PartitionKey(collection.Context)).Wait();
             }
             // status - Processing
             

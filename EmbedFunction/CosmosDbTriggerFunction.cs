@@ -16,8 +16,6 @@ public sealed class CosmosDbTriggerFunction(EmbedService service, ILoggerFactory
         IReadOnlyList<FileCollection> input
         )
     {
-        await Task.Delay(5000); // Wait 1.5 seconds
-        
         foreach (var file in input)
         {
             if (file.Status == FileCollection.FileStatus.NotProcessed)
