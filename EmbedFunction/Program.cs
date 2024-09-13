@@ -27,9 +27,11 @@ builder.ConfigureAppConfiguration((_, config) =>
     config.ConfigureAzureKeyVault(credential);
 });
 
-builder.ConfigureServices((context, services) =>
+builder.ConfigureServices((_, services) =>
 {
     services.AddLogging();
+    services.AddApplicationInsightsTelemetryWorkerService();
+    services.ConfigureFunctionsApplicationInsights();
 
     services.AddAzureClients(opt =>
     {
@@ -68,7 +70,7 @@ builder.ConfigureServices((context, services) =>
         return ActivatorUtilities.CreateInstance<AzureEmbedService>(sp, new OpenAIClient(key), embeddingModel);
     });
 
-    services.AddHostedService<Worker>();
+    //services.AddHostedService<Worker>();
     services.AddCosmos();
 });
 

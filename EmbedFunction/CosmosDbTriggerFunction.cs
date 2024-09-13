@@ -12,7 +12,11 @@ public sealed class CosmosDbTriggerFunction(EmbedService service, ILoggerFactory
     
     [Function("embed-file")]
     public async Task Run(
-        [CosmosDBTrigger("simonaggio-docs", "db_files", CreateLeaseContainerIfNotExists = true)] 
+        [CosmosDBTrigger(
+            "simonaggio-docs", 
+            "db_files", 
+            LeaseContainerName = "leases",
+            CreateLeaseContainerIfNotExists = true)] 
         IReadOnlyList<FileCollection> input
         )
     {

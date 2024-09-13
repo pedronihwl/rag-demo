@@ -39,4 +39,12 @@
     <ItemGroup>
         <SupportedPlatform Include="browser" />
     </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="wwwroot\assets\index-1tdPxKQz.js" />
+      <_ContentIncludedByDefault Remove="wwwroot\assets\index-f8_sQbgP.css" />
+      <_ContentIncludedByDefault Remove="wwwroot\assets\__vite-browser-external-BIHI7g3E.js" />
+      <_ContentIncludedByDefault Remove="wwwroot\index.html" />
+      <_ContentIncludedByDefault Remove="wwwroot\vite.svg" />
+    </ItemGroup>
 </Project>
