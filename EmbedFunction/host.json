@@ -1,14 +1,10 @@
 {
   "version": "2.0",
-  "retry": {
-    "strategy": "fixedDelay",
-    "maxRetryCount": 0,
-    "delayInterval": "00:00:05"
-  },
-  "extensions": {
-    "cosmosDB": {
-      "leaseOptions": {
-        "leasePrefix": "db-lease"
+  "logging": {
+    "applicationInsights": {
+      "samplingSettings": {
+        "isEnabled": true,
+        "excludedTypes": "Request"
       }
     }
   }

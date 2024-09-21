@@ -1,5 +1,5 @@
 ﻿# Base stage
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+FROM mcr.microsoft.com/azure-functions
 USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
@@ -20,19 +20,27 @@ COPY . .
 RUN dotnet restore "Backend/Backend.csproj" --no-cache
 RUN dotnet publish "Backend/Backend.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false --no-restore
 
+RUN echo "Conteúdo de /app/publish no estágio build:" && ls -la /app/publish
+
 # Final stage
 FROM base AS final
 WORKDIR /app
 COPY --from=build /app/publish .
+COPY --from=build /src/Backend/wwwroot ./wwwroot
 
 # Environment variables
 ENV AZURE_KEY_VAULT_ENDPOINT="https://kv-simonaggio.vault.azure.net/"
 ENV OPENAI_EMBEDDING_DEPLOYMENT=text-embedding-ada-002
 ENV OPENAI_CHAT_DEPLOYMENT=gpt-4o-mini
 
-
 ENTRYPOINT ["dotnet", "Backend.dll"]
 
 # docker build -t crsimonaggio.azurecr.io/ragappbackend:demo .
 # docker push crsimonaggio.azurecr.io/ragappbackend:demo
 
+# ENTRYPOINT ["/bin/bash"]
+# docker login crsimonaggio.azurecr.io --username crsimonaggio --password-stdin
+# docker build -t simon:backend .
+# docker run --rm -it -p 8080:8080 --name simon simon:backend
+# docker tag simon:backend crsimonaggio.azurecr.io/ragappbackend:demo
+# docker push crsimonaggio.azurecr.io/ragappbackend:demo
