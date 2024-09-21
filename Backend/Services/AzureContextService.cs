@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -377,7 +378,7 @@ public class AzureContextService(
             throw new ArgumentException("Failed deleting fragments");
         }
 
-        string blob = $"{context}/{file.Hash}{Path.GetExtension(file.Name)}";
+        string blob = $"{context}/{file.Hash}{Path.GetExtension(file.Name).ToLower()}";
         var blobClient = container.GetBlobClient(blob);
 
         if (await blobClient.ExistsAsync(cancelToken))
@@ -447,9 +448,12 @@ public class AzureContextService(
 
         await using var stream = file.OpenReadStream();
 
+        Encoding ascii = Encoding.ASCII;
+
+        var encodedContentDisposition = ascii.GetBytes(file.ContentDisposition);
         await blobClient.UploadAsync(stream, new BlobHttpHeaders()
         {
-            ContentDisposition = file.ContentDisposition,
+            ContentDisposition = ascii.GetString(encodedContentDisposition),
             ContentType = file.ContentType
         }, new Dictionary<string, string>()
         {

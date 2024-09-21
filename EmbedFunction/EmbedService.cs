@@ -61,7 +61,7 @@ public class EmbedService
             file.Status = FileCollection.FileStatus.Processing;
             await dbFiles.UpsertItemAsync(file, new PartitionKey(file.Context));
             
-            string key = $"{file.Context}/{file.Hash}{Path.GetExtension(file.Name)}";
+            string key = $"{file.Context}/{file.Hash}{Path.GetExtension(file.Name).ToLower()}";
             BlobClient blob = _container.GetBlobClient(key);
 
             BlobDownloadResult content = (await blob.DownloadContentAsync()).Value;
